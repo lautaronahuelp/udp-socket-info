@@ -10,6 +10,7 @@ from datetime import datetime
 # @terminar! => termina ejecucion del servidor, eco el mensaje de terminar
 
 INTERVALO_REP = 5000
+INTERVALO_PER = 30000
 
 IPLocal = "192.168.100.200"
 puertoLocal= 54000
@@ -31,9 +32,13 @@ print(">UDP SERVER ESCUCHANDO:")
 
 #ESCUCHO DATAGRAMAS ENTRANTES
 repetirUltimo = False
+habilitarPeriodico = False
 ultimaRepeticion = datetime.now()
 ultimoRecibido = []
 intervaloRepeticion =  INTERVALO_REP
+intervaloPeriodico = INTERVALO_PER
+ultimoPeriodico = datetime.now()
+direccionPeriodico = ('', 0)
 
 while(estaEscuchando):
     hayData = True
@@ -44,14 +49,23 @@ while(estaEscuchando):
     except:
         hayData = False
 
-    restaTimeout = datetime.now() - ultimaRepeticion
+    #DRIVER @repetir
+    restaRepeticion = datetime.now() - ultimaRepeticion
 
-    if repetirUltimo and (restaTimeout.total_seconds() * 1000) > intervaloRepeticion and not(hayData):
+    if repetirUltimo and (restaRepeticion.total_seconds() * 1000) > intervaloRepeticion and not(hayData):
         mensajeProcesado = ("%s R %s:%s" % (momentoActual.strftime("%d/%m/%y_%H:%M:%S"), ultimoRecibido[1], ultimoRecibido[0]))
         UDPSocketTest.sendto(str.encode(mensajeProcesado), ultimoRecibido[1])
         ultimaRepeticion = datetime.now()
         print(mensajeProcesado)
         listaMensajesRecibidos.append(mensajeProcesado)
+
+    #DRIVER @periodico
+    restaPeriodico = datetime.now() - ultimoPeriodico
+
+    if habilitarPeriodico and (restaPeriodico.total_seconds() * 1000) > intervaloPeriodico and not(hayData):
+        mensajeProcesado = ("%s N %s:@" % (momentoActual.strftime("%d/%m/%y_%H:%M:%S"), direccionPeriodico))
+        UDPSocketTest.sendto(str.encode(mensajeProcesado), direccionPeriodico)
+        ultimoPeriodico = datetime.now()
 
     if hayData:
         mensajeRecibido = parDireccionBytes[0]
@@ -91,6 +105,23 @@ while(estaEscuchando):
 
             listaMensajesRecibidos.append(mensajeProcesado)
         
+        if mensajeDecodificado[0:11] == "@periodico:":
+            nuevoIntervalo = mensajeDecodificado[11:]
+            direccionPeriodico = direccionRecibido
+
+            if int(nuevoIntervalo) >= 1000:
+                habilitarPeriodico = True
+                intervaloPeriodico = int(nuevoIntervalo)
+            else:
+                habilitarPeriodico = False
+
+            mensajeProcesado = ("%s N %s:%s~%d" % (momentoActual.strftime("%d/%m/%y_%H:%M:%S"), direccionRecibido, mensajeDecodificado, intervaloPeriodico))
+            UDPSocketTest.sendto(str.encode(mensajeProcesado), direccionRecibido)
+            print(mensajeProcesado)
+
+            listaMensajesRecibidos.append(mensajeProcesado)
+                
+
         if mensajeDecodificado[0:9] == "@guardar!":
             repetirUltimo = False
             estaGuardado = False
