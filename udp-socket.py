@@ -6,6 +6,8 @@ from datetime import datetime
 # @repetir:MSJ => igual que @mensaje: ademas repite el eco segun intervaloRepeticion
 # @intervalo:TIEMPO => seguido de TIEMPO en ms, cambia intervaloRepeticion a TIEMPO
 # si es mayor o igual a 50ms sino lo establece a INTERVALO_REP, echo y enlista @intervalo:tiempo~intervaloRepeticion
+# @periodico:TIEMPO => seguido de TIEMPO en ms, enviara un @ (no se enlista) cada TIEMPO, cambia intervaloPeriodico a TIEMPO
+# si es mayor o igual a 1000ms sino lo deshabilita, echo y enlista @periodico:tiempo~intervaloPeriodico
 # @guardar! => guarda lista en archivo TXT, eco el mensaje de guardar
 # @terminar! => termina ejecucion del servidor, eco el mensaje de terminar
 
