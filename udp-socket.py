@@ -1,6 +1,15 @@
 import socket
 from datetime import datetime
 
+# INSTRUCCIONES DE USO:
+# @mensaje:MSJ => eco MSJ y lo guarda en la lista
+# @repetir:MSJ => igual que @mensaje: ademas repite el eco segun intervaloRepeticion
+# @intervalo:TIEMPO => seguido de TIEMPO en ms, cambia intervaloRepeticion a TIEMPO
+# si es mayor o igual a 50ms sino lo establece a INTERVALO_REP, echo y enlista @intervalo:tiempo~intervaloRepeticion
+# @guardar! => guarda lista en archivo TXT, eco el mensaje de guardar
+# @terminar! => termina ejecucion del servidor, eco el mensaje de terminar
+
+INTERVALO_REP = 5000
 
 IPLocal = "192.168.100.200"
 puertoLocal= 54000
@@ -21,6 +30,10 @@ UDPSocketTest.setblocking(False)
 print(">UDP SERVER ESCUCHANDO:")
 
 #ESCUCHO DATAGRAMAS ENTRANTES
+repetirUltimo = False
+ultimaRepeticion = datetime.now()
+ultimoRecibido = []
+intervaloRepeticion =  INTERVALO_REP
 
 while(estaEscuchando):
     hayData = True
@@ -31,6 +44,15 @@ while(estaEscuchando):
     except:
         hayData = False
 
+    restaTimeout = datetime.now() - ultimaRepeticion
+
+    if repetirUltimo and (restaTimeout.total_seconds() * 1000) > intervaloRepeticion and not(hayData):
+        mensajeProcesado = ("%s R %s:%s" % (momentoActual.strftime("%d/%m/%y_%H:%M:%S"), ultimoRecibido[1], ultimoRecibido[0]))
+        UDPSocketTest.sendto(str.encode(mensajeProcesado), ultimoRecibido[1])
+        ultimaRepeticion = datetime.now()
+        print(mensajeProcesado)
+        listaMensajesRecibidos.append(mensajeProcesado)
+
     if hayData:
         mensajeRecibido = parDireccionBytes[0]
         direccionRecibido = parDireccionBytes[1]
@@ -38,14 +60,41 @@ while(estaEscuchando):
         mensajeDecodificado = mensajeRecibido.decode("utf-8")
 
         if mensajeDecodificado[0:9] == "@mensaje:":
-            mensajeProcesado = ("%s %s:%s" % (momentoActual.strftime("%d/%m/%y_%H:%M:%S"), direccionRecibido, mensajeDecodificado[9:]))
+            repetirUltimo = False
+            mensajeProcesado = ("%s N %s:%s" % (momentoActual.strftime("%d/%m/%y_%H:%M:%S"), direccionRecibido, mensajeDecodificado[9:]))
             UDPSocketTest.sendto(str.encode(mensajeProcesado), direccionRecibido)
             print(mensajeProcesado)
             listaMensajesRecibidos.append(mensajeProcesado)
         
+        if mensajeDecodificado[0:9] == "@repetir:":
+            repetirUltimo = True
+            mensajeProcesado = ("%s N %s:%s" % (momentoActual.strftime("%d/%m/%y_%H:%M:%S"), direccionRecibido, mensajeDecodificado[9:]))
+            UDPSocketTest.sendto(str.encode(mensajeProcesado), direccionRecibido)
+            ultimoRecibido = [mensajeProcesado, parDireccionBytes[1]]
+            ultimaRepeticion = datetime.now()
+            print(mensajeProcesado)
+            listaMensajesRecibidos.append(mensajeProcesado)
+        
+        if mensajeDecodificado[0:11] == "@intervalo:":
+            repetirUltimo = False
+
+            nuevoIntervalo = mensajeDecodificado[11:]
+
+            if int(nuevoIntervalo) >= 50:
+                intervaloRepeticion = int(nuevoIntervalo)
+            else:
+                intervaloRepeticion = INTERVALO_REP
+
+            mensajeProcesado = ("%s N %s:%s~%d" % (momentoActual.strftime("%d/%m/%y_%H:%M:%S"), direccionRecibido, mensajeDecodificado, intervaloRepeticion))
+            UDPSocketTest.sendto(str.encode(mensajeProcesado), direccionRecibido)
+            print(mensajeProcesado)
+
+            listaMensajesRecibidos.append(mensajeProcesado)
+        
         if mensajeDecodificado[0:9] == "@guardar!":
+            repetirUltimo = False
             estaGuardado = False
-            mensajeProcesado = ("%s %s:%s" % (momentoActual.strftime("%d/%m/%y_%H:%M:%S"), direccionRecibido, mensajeDecodificado[:9]))
+            mensajeProcesado = ("%s N %s:%s" % (momentoActual.strftime("%d/%m/%y_%H:%M:%S"), direccionRecibido, mensajeDecodificado[:9]))
             UDPSocketTest.sendto(str.encode(mensajeProcesado), direccionRecibido)
             print(mensajeProcesado)
             listaMensajesRecibidos.append(mensajeProcesado)
@@ -79,8 +128,9 @@ while(estaEscuchando):
             
 
         if mensajeDecodificado[0:10] == "@terminar!":
+            repetirUltimo = False
             estaEscuchando = False
-            mensajeProcesado = ("%s %s:%s" % (momentoActual.strftime("%d/%m/%y_%H:%M:%S"), direccionRecibido, mensajeDecodificado[:10]))
+            mensajeProcesado = ("%s N %s:%s" % (momentoActual.strftime("%d/%m/%y_%H:%M:%S"), direccionRecibido, mensajeDecodificado[:10]))
             UDPSocketTest.sendto(str.encode(mensajeProcesado), direccionRecibido)
             print(mensajeProcesado)
 
